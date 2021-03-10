@@ -6,6 +6,7 @@ import org.geektimes.projects.user.repository.DatabaseUserRepository;
 import org.geektimes.projects.user.repository.UserRepository;
 import org.geektimes.projects.user.sql.LocalTransactional;
 
+import javax.annotation.PreDestroy;
 import javax.annotation.Resource;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityTransaction;
@@ -25,6 +26,12 @@ public class UserServiceImpl implements UserService {
 
     @Resource(name = "bean/Validator")
     private Validator validator;
+
+    @PreDestroy
+    public void destroy() {
+        System.out.println(this.getClass().getName() + "执行销毁方法");
+    }
+
 
     /**
      * 判断是否已注册

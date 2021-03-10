@@ -78,3 +78,10 @@
 4. 手机号规则校验
     - 注解：`org/geektimes/projects/user/validator/bean/validation/Phone.java`
     - 实现：`org.geektimes.projects.user.validator.bean.validation.PhoneValidator`
+    
+5. 销毁阶段实现
+    - 实现：`org.geektimes.context.ComponentContext.processPreDestroy`
+    - 测试：`org.geektimes.projects.user.service.UserServiceImpl.destroy`
+
+
+

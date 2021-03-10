@@ -6,10 +6,21 @@ import org.geektimes.function.ThrowableFunction;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.annotation.Resource;
-import javax.naming.*;
+import javax.naming.Context;
+import javax.naming.InitialContext;
+import javax.naming.NameClassPair;
+import javax.naming.NamingEnumeration;
+import javax.naming.NamingException;
 import javax.servlet.ServletContext;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
@@ -40,6 +51,8 @@ public class ComponentContext {
     private ClassLoader classLoader;
 
     private Map<String, Object> componentsMap = new LinkedHashMap<>();
+
+    private Map<Class<?>, Method> preDestroyMethodMap = new LinkedHashMap<>();
 
     /**
      * 获取 ComponentContext
@@ -91,8 +104,9 @@ public class ComponentContext {
             injectComponents(component, componentClass);
             // 初始阶段 - {@link PostConstruct}
             processPostConstruct(component, componentClass);
-            // TODO 实现销毁阶段 - {@link PreDestroy}
-            processPreDestroy();
+            // TODO 添加销毁方法
+            addPreDestroyMethods(componentClass);
+            // processPreDestroy();
         });
     }
 
@@ -115,6 +129,7 @@ public class ComponentContext {
         });
     }
 
+
     private void processPostConstruct(Object component, Class<?> componentClass) {
         Stream.of(componentClass.getMethods())
                 .filter(method ->
@@ -131,8 +146,38 @@ public class ComponentContext {
         });
     }
 
+    /**
+     * 添加销毁方法
+     * @param componentClass 组件类
+     */
+    private void addPreDestroyMethods(Class<?> componentClass) {
+        Method[] methods = componentClass.getMethods();
+        for (Method method : methods) {
+            if (method.isAnnotationPresent(PreDestroy.class)
+                    && method.getParameterCount() == 0
+                    && !Modifier.isStatic(method.getModifiers())) {
+                preDestroyMethodMap.put(componentClass, method);
+            }
+        }
+    }
+
+    /**
+     * 执行销毁方法
+     */
     private void processPreDestroy() {
-        // TODO
+        if (preDestroyMethodMap.isEmpty()) {
+            return;
+        }
+        componentsMap.values().forEach(component -> {
+            Class<?> aClass = component.getClass();
+            if (preDestroyMethodMap.containsKey(aClass)) {
+                try {
+                    preDestroyMethodMap.get(aClass).invoke(component);
+                } catch (Exception e) {
+                    logger.log(Level.SEVERE, e.getMessage(), e);
+                }
+            }
+        });
     }
 
     /**
@@ -233,6 +278,8 @@ public class ComponentContext {
     }
 
     public void destroy() throws RuntimeException {
+        // TODO 实现销毁阶段 - {@link PreDestroy}
+        processPreDestroy();
         close(this.envContext);
     }
 
