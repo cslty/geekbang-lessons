@@ -20,12 +20,7 @@
               maxActive="100" maxIdle="30" maxWait="10000"
               username="" password="" 
               driverClassName="org.apache.derby.jdbc.EmbeddedDriver"
-              url="jdbc:derby:/db/user-platform;create=true"/>
-
-	<!-- FactoryBean -->
-	<Resource name="bean/DBConnectionManager" auth="Container"
-			  type="org.geektimes.projects.user.sql.DBConnectionManager"
-			  factory="org.apache.naming.factory.BeanFactory" />
+			  url="jdbc:derby:E:/test/db/user-platform;create=true"/>
 
 	<!--
 	缺少指定 interface 类型的属性
@@ -37,8 +32,17 @@
 			  propertiesLocation="META-INF/jpa-datasource.properties"
 			  factory="org.apache.naming.factory.BeanFactory" />
 
+	<!-- FactoryBean -->
+	<Resource name="bean/DBConnectionManager" auth="Container"
+			  type="org.geektimes.projects.user.sql.DBConnectionManager"
+			  factory="org.apache.naming.factory.BeanFactory" />
+
 	<Resource name="bean/Validator" auth="Container"
 			  type="org.geektimes.projects.user.validator.bean.validation.DelegatingValidator"
+			  factory="org.apache.naming.factory.BeanFactory" />
+
+	<Resource name="bean/UserRepository" auth="Container"
+			  type="org.geektimes.projects.user.repository.DatabaseUserRepository"
 			  factory="org.apache.naming.factory.BeanFactory" />
 
 	<Resource name="bean/UserService" auth="Container"

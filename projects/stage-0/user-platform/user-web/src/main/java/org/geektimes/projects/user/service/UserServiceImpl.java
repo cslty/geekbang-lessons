@@ -1,33 +1,72 @@
 package org.geektimes.projects.user.service;
 
 import org.geektimes.projects.user.domain.User;
+import org.geektimes.projects.user.exception.UserRegisterException;
+import org.geektimes.projects.user.repository.DatabaseUserRepository;
+import org.geektimes.projects.user.repository.UserRepository;
 import org.geektimes.projects.user.sql.LocalTransactional;
 
 import javax.annotation.Resource;
 import javax.persistence.EntityManager;
+import javax.persistence.EntityTransaction;
+import javax.persistence.Query;
+import javax.validation.ConstraintViolation;
 import javax.validation.Validator;
+import java.util.Set;
+import java.util.StringJoiner;
 
 public class UserServiceImpl implements UserService {
 
     @Resource(name = "bean/EntityManager")
     private EntityManager entityManager;
 
+    @Resource(name = "bean/UserRepository")
+    private UserRepository userRepository;
+
     @Resource(name = "bean/Validator")
     private Validator validator;
+
+    /**
+     * 判断是否已注册
+     *
+     * @see DatabaseUserRepository#selectIsRegistered(java.lang.String)
+     * @param user 用户对象
+     * @return 是否已注册
+     */
+    @Override
+    public boolean isRegistered(User user) {
+        Query query = entityManager.createQuery("SELECT 1 FROM User WHERE name = :name", Integer.class);
+        query.setParameter("name", user.getName());
+        query.setMaxResults(1);
+        return !query.getResultList().isEmpty();
+    }
 
     @Override
     // 默认需要事务
     @LocalTransactional
     public boolean register(User user) {
-        // before process
-//        EntityTransaction transaction = entityManager.getTransaction();
-//        transaction.begin();
 
-        // 主调用
+        // 校验用户是否可注册
+        validateRegister(user);
+
+        // before process
+        EntityTransaction transaction = entityManager.getTransaction();
+        transaction.begin();
+
+        /**
+         * @see DatabaseUserRepository#save(org.geektimes.projects.user.domain.User)
+         */
         entityManager.persist(user);
 
+        // TODO 校验ID：必须大于 0 的整数
+        /*user.setId(0L);
+        Set<ConstraintViolation<User>> violationSet = validator.validateProperty(user, "id");
+        if (!violationSet.isEmpty()) {
+            throw new UserRegisterException(violationSet.iterator().next().getMessage());
+        }*/
+
         // 调用其他方法方法
-        update(user); // 涉及事务
+        // update(user); // 涉及事务
         // register 方法和 update 方法存在于同一线程
         // register 方法属于 Outer 事务（逻辑）
         // update 方法属于 Inner 事务（逻辑）
@@ -51,9 +90,9 @@ public class UserServiceImpl implements UserService {
         // 这种情况 update 方法同样共享了 register 方法物理事务，并且通过 Savepoint 来实现局部提交和回滚
 
         // after process
-        // transaction.commit();
+         transaction.commit();
 
-        return false;
+        return true;
     }
 
     @Override
@@ -76,4 +115,27 @@ public class UserServiceImpl implements UserService {
     public User queryUserByNameAndPassword(String name, String password) {
         return null;
     }
+
+    /**
+     * 验证注册参数
+     *
+     * @param user 注册用户
+     */
+    private void validateRegister(User user) {
+        // 参数校验
+        Set<ConstraintViolation<User>> violationSet = validator.validate(user, User.Register.class);
+        if (!violationSet.isEmpty()) {
+            StringJoiner errorJoiner = new StringJoiner("; ");;
+            for (ConstraintViolation<User> userConstraintViolation : violationSet) {
+                String message = userConstraintViolation.getMessage();
+                errorJoiner.add(message);
+            }
+            throw new UserRegisterException(errorJoiner.toString());
+        }
+        // 校验是否已注册
+        if (isRegistered(user)) {
+            throw new UserRegisterException(String.format("用户名%s已被注册", user.getName()));
+        }
+    }
+
 }

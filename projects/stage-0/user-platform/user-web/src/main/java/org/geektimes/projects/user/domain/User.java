@@ -1,9 +1,16 @@
 package org.geektimes.projects.user.domain;
 
-import javax.persistence.*;
-import javax.validation.constraints.Max;
+import org.geektimes.projects.user.validator.bean.validation.Phone;
+import org.hibernate.validator.constraints.Email;
+import org.hibernate.validator.constraints.Length;
+import org.hibernate.validator.constraints.NotBlank;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.Table;
 import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -19,23 +26,45 @@ import static javax.persistence.GenerationType.AUTO;
 public class User implements Serializable {
 
     @Id
+    // 不做处理
+    @Min(value = 1, message = "id需大于0")
     @GeneratedValue(strategy = AUTO)
-    @NotNull
     private Long id;
 
     @Column
+    @NotBlank(message = "用户名不能为空", groups = {Register.class, Login.class})
+    @Length(max = 16, message = "用户名不能超过16个字符", groups = {Register.class, Login.class})
     private String name;
 
     @Column
-    @Max(32)
-    @Min(6)
+    @NotBlank(message = "密码不能为空", groups = {Register.class, Login.class})
+    @Length(min = 6, max = 32, message = "密码只支持6~32个字符", groups = {Register.class, Login.class})
     private String password;
 
     @Column
+    @NotBlank(message = "邮箱不能为空", groups = {Register.class})
+    @Email(message = "邮箱格式错误", groups = {Register.class})
     private String email;
 
     @Column
+    @NotBlank(message = "手机号不能为空", groups = {Register.class})
+    @Phone(message = "手机号格式错误", groups = {Register.class})
     private String phoneNumber;
+
+    public interface Register {}
+
+    public interface Login {}
+
+    public User() {
+
+    }
+
+    public User(String name, String password, String email, String phoneNumber) {
+        this.name = name;
+        this.password = password;
+        this.email = email;
+        this.phoneNumber = phoneNumber;
+    }
 
     public Long getId() {
         return id;

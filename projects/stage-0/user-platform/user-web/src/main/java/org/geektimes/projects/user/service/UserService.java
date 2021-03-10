@@ -9,6 +9,14 @@ import org.geektimes.projects.user.sql.LocalTransactional;
 public interface UserService {
 
     /**
+     * 判断用户是否注册
+     *
+     * @param user 用户对象
+     * @return 是否注册
+     */
+    boolean isRegistered(User user);
+
+    /**
      * 注册用户
      *
      * @param user 用户对象
@@ -36,4 +44,5 @@ public interface UserService {
     User queryUserById(Long id);
 
     User queryUserByNameAndPassword(String name, String password);
+
 }
