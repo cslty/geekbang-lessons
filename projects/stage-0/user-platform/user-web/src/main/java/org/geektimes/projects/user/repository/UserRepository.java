@@ -3,7 +3,6 @@ package org.geektimes.projects.user.repository;
 import org.geektimes.projects.user.domain.User;
 
 import java.util.Collection;
-import java.util.List;
 
 /**
  * 用户存储仓库
@@ -23,4 +22,12 @@ public interface UserRepository {
     User getByNameAndPassword(String userName, String password);
 
     Collection<User> getAll();
+
+    /**
+     * 查询用户是否注册
+     *
+     * @param name 用户名
+     */
+    boolean selectIsRegistered(String name);
+
 }

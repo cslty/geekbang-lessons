@@ -1,23 +1,16 @@
 package org.geektimes.projects.user.repository;
 
-import org.geektimes.function.ThrowableFunction;
-import org.geektimes.context.ComponentContext;
 import org.geektimes.projects.user.domain.User;
-import org.geektimes.projects.user.sql.DBConnectionManager;
+import org.geektimes.projects.user.exception.UserRegisterException;
 
-import java.beans.BeanInfo;
-import java.beans.Introspector;
-import java.beans.PropertyDescriptor;
-import java.lang.reflect.Method;
-import java.sql.*;
-import java.util.*;
+import java.sql.Connection;
+import java.util.Collection;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static org.apache.commons.lang.ClassUtils.wrapperToPrimitive;
-
-public class DatabaseUserRepository implements UserRepository {
+public class DatabaseUserRepository extends DatabaseRepository<User> implements UserRepository {
 
     private static Logger logger = Logger.getLogger(DatabaseUserRepository.class.getName());
 
@@ -27,16 +20,15 @@ public class DatabaseUserRepository implements UserRepository {
     private static Consumer<Throwable> COMMON_EXCEPTION_HANDLER = e -> logger.log(Level.SEVERE, e.getMessage());
 
     public static final String INSERT_USER_DML_SQL =
-            "INSERT INTO users(name,password,email,phoneNumber) VALUES " +
-                    "(?,?,?,?)";
+            "INSERT INTO users(name,password,email,phoneNumber) VALUES (?,?,?,?)";
 
     public static final String QUERY_ALL_USERS_DML_SQL = "SELECT id,name,password,email,phoneNumber FROM users";
 
-    private final DBConnectionManager dbConnectionManager;
+    public static final String QUERY_USER_BY_ID_DML_SQL = "SELECT id,name,password,email,phoneNumber FROM users WHERE id=?";
 
-    public DatabaseUserRepository() {
-        this.dbConnectionManager = ComponentContext.getInstance().getComponent("bean/DBConnectionManager");
-    }
+    public static final String QUERY_USER_BY_NAME_AND_PASSWORD_DML_SQL = "SELECT id,name,password,email,phoneNumber FROM users WHERE name=? and password=?";
+
+    public static final String QUERY_USER_IS_REGISTERED_DML_SQL = "SELECT 1 FROM users WHERE name = ?";
 
     private Connection getConnection() {
         return dbConnectionManager.getConnection();
@@ -44,7 +36,8 @@ public class DatabaseUserRepository implements UserRepository {
 
     @Override
     public boolean save(User user) {
-        return false;
+        return executeUpdate(INSERT_USER_DML_SQL, COMMON_EXCEPTION_HANDLER,
+                user.getName(), user.getPassword(), user.getEmail(), user.getPhoneNumber()) > 0;
     }
 
     @Override
@@ -59,104 +52,27 @@ public class DatabaseUserRepository implements UserRepository {
 
     @Override
     public User getById(Long userId) {
-        return null;
+        return queryForObject(QUERY_USER_BY_ID_DML_SQL, COMMON_EXCEPTION_HANDLER, userId);
     }
 
     @Override
     public User getByNameAndPassword(String userName, String password) {
-        return executeQuery("SELECT id,name,password,email,phoneNumber FROM users WHERE name=? and password=?",
-                resultSet -> {
-                    // TODO
-                    return new User();
-                }, COMMON_EXCEPTION_HANDLER, userName, password);
+        return queryForObject(QUERY_USER_BY_NAME_AND_PASSWORD_DML_SQL
+                , COMMON_EXCEPTION_HANDLER, userName, password);
     }
 
     @Override
     public Collection<User> getAll() {
-        return executeQuery("SELECT id,name,password,email,phoneNumber FROM users", resultSet -> {
-            // BeanInfo -> IntrospectionException
-            BeanInfo userBeanInfo = Introspector.getBeanInfo(User.class, Object.class);
-            List<User> users = new ArrayList<>();
-            while (resultSet.next()) { // 如果存在并且游标滚动 // SQLException
-                User user = new User();
-                for (PropertyDescriptor propertyDescriptor : userBeanInfo.getPropertyDescriptors()) {
-                    String fieldName = propertyDescriptor.getName();
-                    Class fieldType = propertyDescriptor.getPropertyType();
-                    String methodName = resultSetMethodMappings.get(fieldType);
-                    // 可能存在映射关系（不过此处是相等的）
-                    String columnLabel = mapColumnLabel(fieldName);
-                    Method resultSetMethod = ResultSet.class.getMethod(methodName, String.class);
-                    // 通过放射调用 getXXX(String) 方法
-                    Object resultValue = resultSetMethod.invoke(resultSet, columnLabel);
-                    // 获取 User 类 Setter方法
-                    // PropertyDescriptor ReadMethod 等于 Getter 方法
-                    // PropertyDescriptor WriteMethod 等于 Setter 方法
-                    Method setterMethodFromUser = propertyDescriptor.getWriteMethod();
-                    // 以 id 为例，  user.setId(resultSet.getLong("id"));
-                    setterMethodFromUser.invoke(user, resultValue);
-                }
-            }
-            return users;
-        }, e -> {
-            // 异常处理
-        });
+        return queryForList(QUERY_ALL_USERS_DML_SQL, COMMON_EXCEPTION_HANDLER);
     }
 
-    /**
-     * @param sql
-     * @param function
-     * @param <T>
-     * @return
-     */
-    protected <T> T executeQuery(String sql, ThrowableFunction<ResultSet, T> function,
-                                 Consumer<Throwable> exceptionHandler, Object... args) {
-        Connection connection = getConnection();
-        try {
-            PreparedStatement preparedStatement = connection.prepareStatement(sql);
-            for (int i = 0; i < args.length; i++) {
-                Object arg = args[i];
-                Class argType = arg.getClass();
-
-                Class wrapperType = wrapperToPrimitive(argType);
-
-                if (wrapperType == null) {
-                    wrapperType = argType;
-                }
-
-                // Boolean -> boolean
-                String methodName = preparedStatementMethodMappings.get(argType);
-                Method method = PreparedStatement.class.getMethod(methodName, wrapperType);
-                method.invoke(preparedStatement, i + 1, args);
-            }
-            ResultSet resultSet = preparedStatement.executeQuery();
-            // 返回一个 POJO List -> ResultSet -> POJO List
-            // ResultSet -> T
-            return function.apply(resultSet);
-        } catch (Throwable e) {
-            exceptionHandler.accept(e);
-        }
-        return null;
+    @Override
+    public boolean selectIsRegistered(String name) {
+        return Objects.equals(queryForObject(QUERY_USER_IS_REGISTERED_DML_SQL, Integer.class,
+                e -> {
+                    logger.log(Level.SEVERE, "[用户注册] 查询用户是否已注册异常", e);
+                    throw new UserRegisterException("注册异常，服务不可用");
+                }, name), 1);
     }
 
-
-    private static String mapColumnLabel(String fieldName) {
-        return fieldName;
-    }
-
-    /**
-     * 数据类型与 ResultSet 方法名映射
-     */
-    static Map<Class, String> resultSetMethodMappings = new HashMap<>();
-
-    static Map<Class, String> preparedStatementMethodMappings = new HashMap<>();
-
-    static {
-        resultSetMethodMappings.put(Long.class, "getLong");
-        resultSetMethodMappings.put(String.class, "getString");
-
-        preparedStatementMethodMappings.put(Long.class, "setLong"); // long
-        preparedStatementMethodMappings.put(String.class, "setString"); //
-
-
-    }
 }
