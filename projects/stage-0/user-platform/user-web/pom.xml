@@ -58,13 +58,14 @@
         <!-- Hibernate ORM JPA -->
         <dependency>
             <groupId>org.hibernate</groupId>
-            <artifactId>hibernate-validator</artifactId>
+            <artifactId>hibernate-entitymanager</artifactId>
         </dependency>
 
         <!-- Hibernate Validator -->
         <dependency>
             <groupId>org.hibernate</groupId>
             <artifactId>hibernate-validator</artifactId>
+            <version>5.4.3.Final</version>
         </dependency>
         <dependency>
             <groupId>javax.el</groupId>
@@ -83,6 +84,17 @@
             <artifactId>microprofile-config-api</artifactId>
         </dependency>
 
+        <!-- jolokia -->
+        <dependency>
+            <groupId>org.jolokia</groupId>
+            <artifactId>jolokia-core</artifactId>
+            <version>1.6.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jolokia</groupId>
+            <artifactId>jolokia-client-java</artifactId>
+            <version>1.6.2</version>
+        </dependency>
 
     </dependencies>
 
@@ -103,6 +115,11 @@
                         <version>${derby.version}</version>
                     </dependency>
                 </dependencies>
+                <configuration>
+                    <!-- ServletContext 路径 -->
+                    <path>/</path>
+                    <enableNaming>true</enableNaming>
+                </configuration>
                 <executions>
                     <execution>
                         <id>tomcat-run</id>

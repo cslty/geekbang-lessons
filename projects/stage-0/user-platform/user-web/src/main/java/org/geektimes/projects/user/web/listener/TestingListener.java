@@ -1,5 +1,7 @@
 package org.geektimes.projects.user.web.listener;
 
+import org.eclipse.microprofile.config.Config;
+import org.geektimes.configuration.microprofile.config.DefaultConfigProviderResolver;
 import org.geektimes.context.ComponentContext;
 import org.geektimes.projects.user.domain.User;
 import org.geektimes.projects.user.sql.DBConnectionManager;
@@ -24,12 +26,28 @@ public class TestingListener implements ServletContextListener {
         ComponentContext context = ComponentContext.getInstance();
         DBConnectionManager dbConnectionManager = context.getComponent("bean/DBConnectionManager");
         dbConnectionManager.getConnection();
+        testPropertyFromSystemEnvironment();
+        testPropertyFromApplicationProperties();
         testPropertyFromServletContext(sce.getServletContext());
         testPropertyFromJNDI(context);
-        testUser(dbConnectionManager.getEntityManager());
+        //testUser(dbConnectionManager.getEntityManager());
         logger.info("所有的 JNDI 组件名称：[");
         context.getComponentNames().forEach(logger::info);
         logger.info("]");
+    }
+
+    private void testPropertyFromApplicationProperties() {
+        String propertyName = "application.name";
+        Config config = DefaultConfigProviderResolver.instance().getConfig();
+        logger.info("Application Property[" + propertyName + "] : "
+                + config.getValue(propertyName, String.class));
+    }
+
+    private void testPropertyFromSystemEnvironment() {
+        String propertyName = "JAVA_HOME";
+        Config config = DefaultConfigProviderResolver.instance().getConfig();
+        logger.info("SystemEnvironment Property[" + propertyName + "] : "
+                + config.getValue(propertyName, String.class));
     }
 
     private void testPropertyFromServletContext(ServletContext servletContext) {

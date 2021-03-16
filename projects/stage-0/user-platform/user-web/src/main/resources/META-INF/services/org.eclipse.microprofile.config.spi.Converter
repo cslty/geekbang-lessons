@@ -1,0 +1,5 @@
+org.geektimes.configuration.microprofile.config.converter.StringConvert
+org.geektimes.configuration.microprofile.config.converter.StringToBooleanConvert
+org.geektimes.configuration.microprofile.config.converter.StringToDoubleConvert
+org.geektimes.configuration.microprofile.config.converter.StringToIntegerConvert
+org.geektimes.configuration.microprofile.config.converter.StringToLongConvert

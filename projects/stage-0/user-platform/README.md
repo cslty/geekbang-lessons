@@ -1,5 +1,10 @@
 # 作业
 
+## 项目运行
+ - mvn clean package -U
+ - java -jar .\user-web\target\user-web-v1-SNAPSHOT-war-exec.jar
+ 
+
 ## 第一周作业
 
 ### 要求
@@ -82,6 +87,76 @@
 5. 销毁阶段实现
     - 实现：`org.geektimes.context.ComponentContext.processPreDestroy`
     - 测试：`org.geektimes.projects.user.service.UserServiceImpl.destroy`
+    
+    
+## 第三周作业
 
+### 要求
 
-
+- 整合`https://jolokia.org/`
+  - 实现一个自定义JMX MBean, 通过jolokia做Servlet代理
+- 继续完成 Microprofile Config Api 中的实现
+  - 扩展 org.eclipse.microprofile.config.spi.ConfigSource 实现，包括 OS 环境变量，以及本地配置文件
+  - 扩展 org.eclipse.microprofile.config.spi.Converter 实现，提供 String 类型到简单类型
+- 通过 org.eclipse.microprofile.config.Config 读取到当前应用名称
+  - 应用名称 property name = "application.name"
+  
+### 实现(jolokia)
+1. maven依赖
+    ```xml
+        <dependency>
+            <groupId>org.jolokia</groupId>
+            <artifactId>jolokia-core</artifactId>
+            <version>1.6.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jolokia</groupId>
+            <artifactId>jolokia-client-java</artifactId>
+            <version>1.6.2</version>
+        </dependency>
+    ```
+2. servlet配置
+    ```xml
+        <servlet>
+            <servlet-name>jolokia-agent</servlet-name>
+            <servlet-class>org.jolokia.http.AgentServlet</servlet-class>
+            <load-on-startup>2</load-on-startup>
+        </servlet>
+    
+        <servlet-mapping>
+            <servlet-name>jolokia-agent</servlet-name>
+            <url-pattern>/jolokia/*</url-pattern>
+        </servlet-mapping>
+    ```
+3. 初始化注册MBean
+  org.geektimes.projects.user.web.listener.ManagementBeanInitializerListener
+    ```xml
+    <listener>
+        <listener-class>org.geektimes.projects.user.web.listener.ManagementBeanInitializerListener</listener-class>
+    </listener>
+    ```
+4. 测试类：`org.geektimes.management.demo.JolokiaDemo`
+    - MBean列表：`JolokiaDemo.listMBean` http://localhost:8080/jolokia/list
+    - MBean属性写入：`JolokiaDemo.writeMBean` http://localhost:8080/jolokia/write/org.geektimes.projects.user.management:type=User/Name/lisi
+    - MBean属性读取：`JolokiaDemo.readMBean` http://localhost:8080/jolokia/read/org.geektimes.projects.user.management:type=User/User
+    - MBean方法执行：`JolokiaDemo.execMBean` http://localhost:8080/jolokia/exec/org.geektimes.projects.user.management:type=User/toString
+    
+### 实现(Microprofile Config Api)
+1. ConfigSource 扩展
+    - META-INF/application.properties配置文件：`org.geektimes.configuration.microprofile.config.source.ApplicationPropertiesConfigSource`
+    - 系统环境变量：`org.geektimes.configuration.microprofile.config.source.SystemEnvironmentConfigSource`
+2. Converter 定义
+    ```text
+       org.geektimes.configuration.microprofile.config.converter.StringConvert
+       org.geektimes.configuration.microprofile.config.converter.StringToBooleanConvert
+       org.geektimes.configuration.microprofile.config.converter.StringToDoubleConvert
+       org.geektimes.configuration.microprofile.config.converter.StringToIntegerConvert
+       org.geektimes.configuration.microprofile.config.converter.StringToLongConvert
+    ```
+3. Config 配置读取
+    - 实现：`org.geektimes.configuration.microprofile.config.JavaConfig`
+    - 获取：`DefaultConfigProviderResolver.instance().getConfig()`
+    - 调用：`Config.getValue(String propertyName, Class<T> propertyType)`
+4. 测试
+    - META-INF/application.properties：`org.geektimes.projects.user.web.listener.TestingListener.testPropertyFromApplicationProperties`
+    - 系统环境变量：`org.geektimes.projects.user.web.listener.TestingListener.testPropertyFromSystemEnvironment`
